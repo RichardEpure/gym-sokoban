@@ -30,6 +30,7 @@ class SokobanEnv(gym.Env):
         self.boxes_on_target = 0
 
         # Penalties and Rewards
+        self.penalty_for_invalid_action = -0.2
         self.penalty_for_idle = -0.2
         self.penalty_for_step = -0.1
         self.penalty_box_off_target = -1
@@ -73,7 +74,7 @@ class SokobanEnv(gym.Env):
         else:
             moved_player = self._move(action)
 
-        self._calc_reward(action)
+        self._calc_reward(action, moved_player)
         
         done = self._check_if_done()
 
@@ -155,7 +156,7 @@ class SokobanEnv(gym.Env):
 
         return False
 
-    def _calc_reward(self, action):
+    def _calc_reward(self, action, moved_player):
         """
         Calculate Reward Based on
         :return:
@@ -166,8 +167,15 @@ class SokobanEnv(gym.Env):
 
         # If no action was taken, apply a penalty.
         if ACTION_LOOKUP[action] == 'no operation':
-            print("true")
             self.reward_last += self.penalty_for_idle
+
+        # If an action was taken that is invalid
+        # (e.g. attempt to move into a wall), then
+        # apply a penalty.
+        if action > 0 and not moved_player:
+            print("true")
+            self.reward_last += self.penalty_for_invalid_action
+
 
         # count boxes off or on the target
         empty_targets = self.room_state == 2
