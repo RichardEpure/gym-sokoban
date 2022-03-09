@@ -166,6 +166,7 @@ class SokobanEnv(gym.Env):
 
         # If no action was taken, apply a penalty.
         if ACTION_LOOKUP[action] == 'no operation':
+            print("true")
             self.reward_last += self.penalty_for_idle
 
         # count boxes off or on the target
@@ -188,6 +189,7 @@ class SokobanEnv(gym.Env):
             self.reward_last += self.reward_finished
         
         self.boxes_on_target = current_boxes_on_target
+        print(self.reward_last)
 
     def _check_if_done(self):
         # Check if the game is over either through reaching the maximum number
