@@ -30,6 +30,7 @@ class SokobanEnv(gym.Env):
         self.boxes_on_target = 0
 
         # Penalties and Rewards
+        self.penalty_for_idle = -0.2
         self.penalty_for_step = -0.1
         self.penalty_box_off_target = -1
         self.reward_box_on_target = 1
@@ -72,7 +73,7 @@ class SokobanEnv(gym.Env):
         else:
             moved_player = self._move(action)
 
-        self._calc_reward()
+        self._calc_reward(action)
         
         done = self._check_if_done()
 
@@ -154,7 +155,7 @@ class SokobanEnv(gym.Env):
 
         return False
 
-    def _calc_reward(self):
+    def _calc_reward(self, action):
         """
         Calculate Reward Based on
         :return:
@@ -162,6 +163,10 @@ class SokobanEnv(gym.Env):
         # Every step a small penalty is given, This ensures
         # that short solutions have a higher reward.
         self.reward_last = self.penalty_for_step
+
+        # If no action was taken, apply a penalty.
+        if ACTION_LOOKUP[action] == 'no operation':
+            self.reward_last += self.penalty_for_idle
 
         # count boxes off or on the target
         empty_targets = self.room_state == 2
