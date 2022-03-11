@@ -161,7 +161,7 @@ class LearnSokobanEnv(gym.Env):
 
         # If no action was taken, apply a penalty.
         if ACTION_LOOKUP[action] == 'no operation':
-            self.reward_last += self.penalty_for_invalid_action
+            self.reward_last = self.penalty_for_invalid_action
 
         # If an action was taken that is invalid
         # (e.g. attempt to move into a wall), then
