@@ -169,8 +169,6 @@ class LearnSokobanEnv(gym.Env):
         if action > 0 and not moved_player:
             self.reward_last = self.penalty_for_invalid_action
 
-        print(self.reward_last)
-
     def _check_if_done(self):
         # Check if the game is over either through reaching the maximum number
         # of available steps or by pushing all boxes on the targets.        

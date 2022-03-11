@@ -195,7 +195,6 @@ class SokobanEnv(gym.Env):
             self.reward_last += self.reward_finished
         
         self.boxes_on_target = current_boxes_on_target
-        print(self.reward_last)
 
     def _check_if_done(self):
         # Check if the game is over either through reaching the maximum number
