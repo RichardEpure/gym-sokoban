@@ -1,8 +1,20 @@
+from .sokoban_env_learn import LearnSokobanEnv
 from .sokoban_env import SokobanEnv
 from .sokoban_env_fixed_targets import FixedTargetsSokobanEnv
 from .sokoban_env_pull import PushAndPullSokobanEnv
 from .sokoban_env_two_player import TwoPlayerSokobanEnv
 from .boxoban_env import BoxobanEnv
+
+
+class SokobanEnv_Learn0(LearnSokobanEnv):
+    metadata = {
+        'render.modes': ['human', 'rgb_array', 'tiny_human', 'tiny_rgb_array'],
+    }
+
+    def __init__(self, **kwargs):
+        kwargs['num_boxes'] = kwargs.get('num_boxes', 3)
+        kwargs['max_steps'] = kwargs.get('max_steps', 200)
+        super(SokobanEnv_Learn0, self).__init__(**kwargs)
 
 
 class SokobanEnv1(SokobanEnv):

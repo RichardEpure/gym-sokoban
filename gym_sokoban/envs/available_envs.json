@@ -1,5 +1,9 @@
 [
   {
+    "id": "Sokoban-learn-v0",
+    "entry_point": "gym_sokoban.envs:SokobanEnv_Learn0"
+  },
+  {
     "id": "Sokoban-v0",
     "entry_point": "gym_sokoban.envs:SokobanEnv1"
   },

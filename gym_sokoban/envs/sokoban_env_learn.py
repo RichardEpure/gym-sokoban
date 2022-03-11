@@ -7,7 +7,7 @@ from .render_utils import room_to_rgb, room_to_tiny_world_rgb
 import numpy as np
 
 
-class SokobanEnv(gym.Env):
+class LearnSokobanEnv(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array', 'tiny_human', 'tiny_rgb_array', 'raw']
     }
@@ -30,12 +30,8 @@ class SokobanEnv(gym.Env):
         self.boxes_on_target = 0
 
         # Penalties and Rewards
-        self.penalty_for_invalid_action = -0.2
-        self.penalty_for_step = -0.1
-        self.penalty_box_off_target = -1
-        self.reward_box_on_target = 1
-        self.reward_finished = 10
-        self.reward_last = 0
+        self.penalty_for_invalid_action = -1
+        self.reward_for_valid_action = 1
 
         # Other Settings
         self.viewer = None
@@ -160,9 +156,8 @@ class SokobanEnv(gym.Env):
         Calculate Reward Based on
         :return:
         """
-        # Every step a small penalty is given, This ensures
-        # that short solutions have a higher reward.
-        self.reward_last = self.penalty_for_step
+        # Default to reward for a valid action
+        self.reward_last = self.reward_for_valid_action
 
         # If no action was taken, apply a penalty.
         if ACTION_LOOKUP[action] == 'no operation':
@@ -172,29 +167,8 @@ class SokobanEnv(gym.Env):
         # (e.g. attempt to move into a wall), then
         # apply a penalty.
         if action > 0 and not moved_player:
-            self.reward_last += self.penalty_for_invalid_action
+            self.reward_last = self.penalty_for_invalid_action
 
-
-        # count boxes off or on the target
-        empty_targets = self.room_state == 2
-        player_on_target = (self.room_fixed == 2) & (self.room_state == 5)
-        total_targets = empty_targets | player_on_target
-
-        current_boxes_on_target = self.num_boxes - \
-                                  np.where(total_targets)[0].shape[0]
-
-        # Add the reward if a box is pushed on the target and give a
-        # penalty if a box is pushed off the target.
-        if current_boxes_on_target > self.boxes_on_target:
-            self.reward_last += self.reward_box_on_target
-        elif current_boxes_on_target < self.boxes_on_target:
-            self.reward_last += self.penalty_box_off_target
-        
-        game_won = self._check_if_all_boxes_on_target()        
-        if game_won:
-            self.reward_last += self.reward_finished
-        
-        self.boxes_on_target = current_boxes_on_target
         print(self.reward_last)
 
     def _check_if_done(self):
@@ -256,7 +230,7 @@ class SokobanEnv(gym.Env):
             return arr_walls, arr_goals, arr_boxes, arr_player
 
         else:
-            super(SokobanEnv, self).render(mode=mode)  # just raise an exception
+            super(LearnSokobanEnv, self).render(mode=mode)  # just raise an exception
 
     def get_image(self, mode, scale=1):
         
