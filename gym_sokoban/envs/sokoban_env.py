@@ -155,6 +155,20 @@ class SokobanEnv(gym.Env):
 
         return False
 
+    def _check_action_is_valid(self, action):
+        """
+        Checks if the given action is valid.
+        :param action:
+        :return: Boolean, indicating whether the action is valid
+        """
+        change = CHANGE_COORDINATES[(action - 1) % 4]
+        new_position = self.player_position + change
+
+        if self.room_state[new_position[0], new_position[1]] in [1, 2]:
+            return True
+
+        return False
+
     def _calc_reward(self, action, moved_player):
         """
         Calculate Reward Based on
@@ -278,6 +292,13 @@ class SokobanEnv(gym.Env):
 
     def get_action_meanings(self):
         return ACTION_LOOKUP
+
+    def valid_action_mask(self):
+        valid_actions = []
+        for action in ACTION_LOOKUP:
+            if self._check_action_is_valid(action):
+                valid_actions.append(action)
+        return np.array(*valid_actions)
 
 
 ACTION_LOOKUP = {
