@@ -294,11 +294,11 @@ class SokobanEnv(gym.Env):
         return ACTION_LOOKUP
 
     def valid_action_mask(self):
-        valid_actions = []
+        valid_actions = [0 for i in range(len(ACTION_LOOKUP))]
         for action in ACTION_LOOKUP:
             if self._check_action_is_valid(action):
-                valid_actions.append(action)
-        return np.array(*valid_actions)
+                valid_actions[action] = action
+        return np.array(valid_actions)
 
 
 ACTION_LOOKUP = {
