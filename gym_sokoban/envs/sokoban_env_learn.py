@@ -159,11 +159,26 @@ class LearnSokobanEnv(gym.Env):
         """
         change = CHANGE_COORDINATES[(action - 1) % 4]
         new_position = self.player_position + change
+        current_position = self.player_position.copy()
 
-        if self.room_state[new_position[0], new_position[1]] in [1, 2]:
-            return True
+        # Check if the field in the moving direction is either
+        # an empty field or an empty box target.
+        if action >= 5 and not self.room_state[new_position[0], new_position[1]] in [1, 2]:
+            return False
 
-        return False
+        if action < 5:
+            # No push, if the push would get the box out of the room's grid
+            new_box_position = new_position + change
+            if new_box_position[0] >= self.room_state.shape[0] \
+                    or new_box_position[1] >= self.room_state.shape[1]:
+                return False
+
+            can_push_box = self.room_state[new_position[0], new_position[1]] in [3, 4]
+            can_push_box &= self.room_state[new_box_position[0], new_box_position[1]] in [1, 2]
+            if not can_push_box:
+                return False
+
+        return True
 
     def _calc_reward(self, action, moved_player):
         """
@@ -267,10 +282,11 @@ class LearnSokobanEnv(gym.Env):
         return ACTION_LOOKUP
 
     def valid_action_mask(self):
-        valid_actions = [0 for i in range(len(ACTION_LOOKUP))]
+        valid_actions = [False for i in ACTION_LOOKUP]
         for action in ACTION_LOOKUP:
-            if self._check_action_is_valid(action):
-                valid_actions[action] = action
+            if action > 0 and self._check_action_is_valid(action):
+                valid_actions[action] = True
+
         return np.array(valid_actions)
 
 
