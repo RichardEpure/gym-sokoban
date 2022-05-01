@@ -28,6 +28,7 @@ class SokobanEnv(gym.Env):
 
         self.num_boxes = num_boxes
         self.boxes_on_target = 0
+        self.state_memo = []
 
         # Penalties and Rewards
         self.penalty_for_invalid_action = -0.2
@@ -43,7 +44,7 @@ class SokobanEnv(gym.Env):
         self.action_space = Discrete(len(ACTION_LOOKUP))
         screen_height, screen_width = (dim_room[0] * 16, dim_room[1] * 16)
         self.observation_space = Box(low=0, high=255, shape=(screen_height, screen_width, 3), dtype=np.uint8)
-        
+
         if reset:
             # Initialize Room
             _ = self.reset()
@@ -74,7 +75,7 @@ class SokobanEnv(gym.Env):
             moved_player = self._move(action)
 
         self._calc_reward(action, moved_player)
-        
+
         done = self._check_if_done()
 
         # Convert the observation to RGB frame
@@ -88,6 +89,12 @@ class SokobanEnv(gym.Env):
         if done:
             info["maxsteps_used"] = self._check_if_maxsteps()
             info["all_boxes_on_target"] = self._check_if_all_boxes_on_target()
+            info["available_valid_actions"] = self._check_if_available_valid_actions()
+
+        room_state = self.room_state.tostring()
+        self.state_memo.append(room_state)
+        if len(self.state_memo) > 4:
+            self.state_memo.pop()
 
         return observation, self.reward_last, done, info
 
@@ -107,7 +114,6 @@ class SokobanEnv(gym.Env):
         if new_box_position[0] >= self.room_state.shape[0] \
                 or new_box_position[1] >= self.room_state.shape[1]:
             return False, False
-
 
         can_push_box = self.room_state[new_position[0], new_position[1]] in [3, 4]
         can_push_box &= self.room_state[new_box_position[0], new_box_position[1]] in [1, 2]
@@ -163,24 +169,55 @@ class SokobanEnv(gym.Env):
         """
         change = CHANGE_COORDINATES[(action - 1) % 4]
         new_position = self.player_position + change
+        current_position = self.player_position.copy()
+        room_copy = self.room_state.copy()
 
         # Check if the field in the moving direction is either
         # an empty field or an empty box target.
-        if action >= 5 and not self.room_state[new_position[0], new_position[1]] in [1, 2]:
-            return False
+        if action >= 5:
+            if not room_copy[new_position[0], new_position[1]] in [1, 2]:
+                return False
+            # Move Player
+            room_copy[(new_position[0], new_position[1])] = 5
+            room_copy[current_position[0], current_position[1]] = \
+                self.room_fixed[current_position[0], current_position[1]]
 
         if action < 5:
             # Check if push is out of bounds.
             new_box_position = new_position + change
-            if new_box_position[0] >= self.room_state.shape[0] \
-                    or new_box_position[1] >= self.room_state.shape[1]:
+            if new_box_position[0] >= room_copy.shape[0] \
+                    or new_box_position[1] >= room_copy.shape[1]:
                 return False
 
             # Check if box is pushable
-            can_push_box = self.room_state[new_position[0], new_position[1]] in [3, 4]
-            can_push_box &= self.room_state[new_box_position[0], new_box_position[1]] in [1, 2]
+            can_push_box = room_copy[new_position[0], new_position[1]] in [3, 4]
+            can_push_box &= room_copy[new_box_position[0], new_box_position[1]] in [1, 2]
             if not can_push_box:
                 return False
+
+            # Check if push leads to deadlock
+            if room_copy[new_box_position[0], new_box_position[1]] != 2:
+                deadlocked = room_copy[new_box_position[0], new_box_position[1] + 1] == 0 and room_copy[new_box_position[0] + 1, new_box_position[1]] == 0 \
+                             or room_copy[new_box_position[0], new_box_position[1] + 1] == 0 and room_copy[new_box_position[0] - 1, new_box_position[1]] == 0 \
+                             or room_copy[new_box_position[0], new_box_position[1] - 1] == 0 and room_copy[new_box_position[0] + 1, new_box_position[1]] == 0 \
+                             or room_copy[new_box_position[0], new_box_position[1] - 1] == 0 and room_copy[new_box_position[0] - 1, new_box_position[1]] == 0
+                if deadlocked:
+                    return False
+
+            # Move Player
+            room_copy[(new_position[0], new_position[1])] = 5
+            room_copy[current_position[0], current_position[1]] = \
+                self.room_fixed[current_position[0], current_position[1]]
+
+            # Move Box
+            box_type = 4
+            if self.room_fixed[new_box_position[0], new_box_position[1]] == 2:
+                box_type = 3
+            room_copy[new_box_position[0], new_box_position[1]] = box_type
+
+        # Check if action leads to a repeated state
+        if room_copy.tostring() in self.state_memo:
+            return False
 
         return True
 
@@ -203,7 +240,6 @@ class SokobanEnv(gym.Env):
         if action > 0 and not moved_player:
             self.reward_last += self.penalty_for_invalid_action
 
-
         # count boxes off or on the target
         empty_targets = self.room_state == 2
         player_on_target = (self.room_fixed == 2) & (self.room_state == 5)
@@ -218,17 +254,17 @@ class SokobanEnv(gym.Env):
             self.reward_last += self.reward_box_on_target
         elif current_boxes_on_target < self.boxes_on_target:
             self.reward_last += self.penalty_box_off_target
-        
-        game_won = self._check_if_all_boxes_on_target()        
+
+        game_won = self._check_if_all_boxes_on_target()
         if game_won:
             self.reward_last += self.reward_finished
-        
+
         self.boxes_on_target = current_boxes_on_target
 
     def _check_if_done(self):
         # Check if the game is over either through reaching the maximum number
-        # of available steps or by pushing all boxes on the targets.        
-        return self._check_if_all_boxes_on_target() or self._check_if_maxsteps()
+        # of available steps or by pushing all boxes on the targets.
+        return self._check_if_all_boxes_on_target() or self._check_if_maxsteps() or self._check_if_available_valid_actions()
 
     def _check_if_all_boxes_on_target(self):
         empty_targets = self.room_state == 2
@@ -238,6 +274,9 @@ class SokobanEnv(gym.Env):
 
     def _check_if_maxsteps(self):
         return (self.max_steps == self.num_env_steps)
+
+    def _check_if_available_valid_actions(self):
+        return (self.valid_action_mask() == np.array([False for i in ACTION_LOOKUP])).all()
 
     def reset(self, second_player=False, render_mode='rgb_array'):
         try:
@@ -287,7 +326,7 @@ class SokobanEnv(gym.Env):
             super(SokobanEnv, self).render(mode=mode)  # just raise an exception
 
     def get_image(self, mode, scale=1):
-        
+
         if mode.startswith('tiny_'):
             img = room_to_tiny_world_rgb(self.room_state, self.room_fixed, scale=scale)
         else:
